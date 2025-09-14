@@ -108,12 +108,11 @@ jobs:
       - name: Report to Telegram
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
-          MESSAGE_THREAD_ID: ${{ secrets.MESSAGE_THREAD_ID }}
         if: env.TG_TOKEN != null
         run: |
           cd build || { echo "build folder not found"; exit 1; }
 
-          TG_CHAT="@RM6785_Chat_OT"
+          TG_CHAT="@RM6785_Chat"
           NL=$'\n'
           APKS=""
           MODULES=""
@@ -141,7 +140,7 @@ jobs:
           *Download APKs:*
           ${APKS}
 
-          *By* [𝙴𝙻𝙾𝙷𝙸𝙼](https://t.me/elohim-etz)
+          *By* [𝙴𝙻𝙾𝙷𝙸𝙼](https://t.me/elohim152)
 
           *🌟 Check out builder source:*
           https://github.com/elohim-etz/revanced-modules
@@ -149,4 +148,4 @@ jobs:
           echo "'$MSG'"
           MSG=${MSG:0:9450}
           POST="https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
-          curl -X POST --data-urlencode "parse_mode=Markdown" --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=${MSG}" --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "message_thread_id=${MESSAGE_THREAD_ID}" "$POST"
+          curl -X POST --data-urlencode "parse_mode=Markdown" --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=${MSG}" --data-urlencode "chat_id=${TG_CHAT}" --data-urlencode "$POST"
