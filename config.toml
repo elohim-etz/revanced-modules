@@ -1,7 +1,7 @@
 enable-module-update = true # set this to false if you do not want to receive updates for the module in magisk app
 parallel-jobs = 1
 patches-source = "anddea/revanced-patches"
-patches-version = "latest"
+patches-version = "dev"
 rv-brand = "anddea ReVanced"
 remove-rv-integrations-checks = true
 
