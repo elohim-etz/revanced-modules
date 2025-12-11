@@ -7,11 +7,11 @@ Install [Microg-RE](https://github.com/WSTxda/MicroG-RE/releases/latest) for non
 Use [zygisk-detach](https://github.com/j-hc/zygisk-detach) to detach root ReVanced YouTube and YT Music from Play Store
   
 CLI: j-hc/revanced-cli-5.0.0-all.jar  
-Patches: anddea/patches-3.15.0-dev.5.rvp  
-[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v3.15.0-dev.5)
+Patches: anddea/patches-3.15.0-dev.6.rvp  
+[Changelog](https://github.com/anddea/revanced-patches/releases/tag/v3.15.0-dev.6)
 
 CLI: j-hc/revanced-cli-5.0.0-all.jar  
 CLI: j-hc/revanced-cli-5.0.0-all.jar  
 CLI: j-hc/revanced-cli-5.0.0-all.jar  
-Patches: crimera/patches-2.0.0-dev.14.rvp  
-[Changelog](https://github.com/crimera/piko/releases/tag/v2.0.0-dev.14)  
+Patches: crimera/patches-2.0.0-dev.16.rvp  
+[Changelog](https://github.com/crimera/piko/releases/tag/v2.0.0-dev.16)  
