@@ -6,11 +6,6 @@ on:
         description: "Triggered from CI"
         required: false
         default: "false"
-  push:
-    branches:
-      - main
-    paths:
-      - "config.toml"
   workflow_call:
     inputs:
       from_ci:
