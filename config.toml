@@ -30,7 +30,7 @@ included-patches = "'Custom branding icon for YouTube Music'"
 patcher-args = """\
   -OappIcon=xisr_yellow \
   """
-version = "8.29.56"
+version = "8.30.54"
 riplib = true
 arch = "arm64-v8a"    
 apkmirror-dlurl = "https://www.apkmirror.com/apk/google-inc/youtube-music"
