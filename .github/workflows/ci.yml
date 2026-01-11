@@ -2,7 +2,7 @@ name: CI
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 16 * * *"
+    - cron: "0 */6 * * *"
 
 jobs:
   check:
@@ -14,23 +14,53 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Should build?
+      - name: Check for new patches
+        id: check_patches
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get latest release including pre-releases
+          LATEST=$(gh api repos/MorpheApp/morphe-patches/releases --jq 'sort_by(.created_at) | reverse | .[0].tag_name')
+          echo "Latest patches: $LATEST"
+          
+          # Get last built version
+          LAST=""
+          if git checkout origin/update build.md 2>/dev/null; then
+            # Extract from "Patches: MorpheApp/patches-1.3.2-dev.1.mpp"
+            LAST=$(grep -oP 'Patches: MorpheApp/patches-\K.*?(?=\.mpp)' build.md | head -1)
+            if [ -n "$LAST" ]; then
+              [[ $LAST != v* ]] && LAST="v$LAST"
+              echo "Last built: $LAST"
+            fi
+          fi
+          
+          # Compare
+          if [ -z "$LAST" ] || [ "$LATEST" != "$LAST" ]; then
+            echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
+          else
+            echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check config changes
         id: should_build
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! git checkout origin/update build.md; then
-            echo "first time building!"
+          PATCHES_BUILD="${{ steps.check_patches.outputs.SHOULD_BUILD }}"
+          
+          if [ "$PATCHES_BUILD" = "1" ]; then
             echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
-          else
+          elif git checkout origin/update build.md 2>/dev/null; then
             UPDATE_CFG=$(./build.sh config.toml --config-update)
-            if [ "$UPDATE_CFG" ]; then
-              echo "'$UPDATE_CFG'"
+            if [ -n "$UPDATE_CFG" ]; then
               echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
             else
               echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
             fi
+          else
+            echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
           fi
 
       - name: Clear older runs
