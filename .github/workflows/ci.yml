@@ -2,7 +2,8 @@ name: CI
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 16 * * *"
+    # Run every 6 hours at minute 0
+    - cron: "0 */6 * * *"
 
 jobs:
   check:
@@ -14,37 +15,109 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Should build?
+      - name: Check for new Morphe patches release
+        id: check_patches
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the latest release (including pre-releases) from morphe-patches
+          LATEST_PATCHES=$(gh api repos/MorpheApp/morphe-patches/releases \
+            --jq 'sort_by(.created_at) | reverse | .[0]' 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_PATCHES" ]; then
+            echo "Failed to fetch morphe-patches releases"
+            echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          LATEST_TAG=$(echo "$LATEST_PATCHES" | jq -r '.tag_name')
+          LATEST_PUBLISHED=$(echo "$LATEST_PATCHES" | jq -r '.created_at')
+          IS_PRERELEASE=$(echo "$LATEST_PATCHES" | jq -r '.prerelease')
+          
+          echo "Latest morphe-patches release: $LATEST_TAG (prerelease: $IS_PRERELEASE)"
+          echo "Published at: $LATEST_PUBLISHED"
+          
+          # Try to get the last built version from the update branch
+          LAST_BUILT_TAG=""
+          if git checkout origin/update build.md 2>/dev/null; then
+            # Extract the patches version from build.md
+            # Looking for lines like "Patches: MorpheApp/morphe-patches-X.Y.Z.rvp"
+            LAST_BUILT_TAG=$(grep -oP 'Patches: MorpheApp/morphe-patches-\K[^.]+\.[^.]+\.[^.]+' build.md | head -1 || echo "")
+            if [ -n "$LAST_BUILT_TAG" ]; then
+              # Add 'v' prefix if not present
+              [[ $LAST_BUILT_TAG != v* ]] && LAST_BUILT_TAG="v$LAST_BUILT_TAG"
+              echo "Last built patches version: $LAST_BUILT_TAG"
+            fi
+          else
+            echo "No previous build found (first time building)"
+          fi
+          
+          # Determine if we should build
+          SHOULD_BUILD=0
+          
+          if [ -z "$LAST_BUILT_TAG" ]; then
+            echo "First time building - will build with latest patches"
+            SHOULD_BUILD=1
+          elif [ "$LATEST_TAG" != "$LAST_BUILT_TAG" ]; then
+            echo "New patches release detected: $LATEST_TAG (previous: $LAST_BUILT_TAG)"
+            SHOULD_BUILD=1
+          else
+            echo "No new patches release. Latest is still $LATEST_TAG"
+            SHOULD_BUILD=0
+          fi
+          
+          echo "SHOULD_BUILD=$SHOULD_BUILD" >> $GITHUB_OUTPUT
+          echo "LATEST_PATCHES_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "LATEST_PATCHES_PRERELEASE=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: Should build based on config update?
         id: should_build
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! git checkout origin/update build.md; then
-            echo "first time building!"
+          PATCHES_CHANGED=${{ steps.check_patches.outputs.SHOULD_BUILD }}
+          CONFIG_CHANGED=0
+          
+          # Also check if config.toml has changes that require rebuild
+          if git checkout origin/update build.md 2>/dev/null; then
+            UPDATE_CFG=$(./build.sh config.toml --config-update 2>/dev/null || echo "")
+            if [ -n "$UPDATE_CFG" ]; then
+              echo "Config changes detected:"
+              echo "$UPDATE_CFG"
+              CONFIG_CHANGED=1
+            fi
+          fi
+          
+          # Build if either patches changed or config changed
+          if [ "$PATCHES_CHANGED" = "1" ] || [ "$CONFIG_CHANGED" = "1" ]; then
+            echo "Build triggered:"
+            [ "$PATCHES_CHANGED" = "1" ] && echo "  - New patches release: ${{ steps.check_patches.outputs.LATEST_PATCHES_TAG }}"
+            [ "$CONFIG_CHANGED" = "1" ] && echo "  - Config changes detected"
             echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
           else
-            UPDATE_CFG=$(./build.sh config.toml --config-update)
-            if [ "$UPDATE_CFG" ]; then
-              echo "'$UPDATE_CFG'"
-              echo "SHOULD_BUILD=1" >> $GITHUB_OUTPUT
-            else
-              echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
-            fi
+            echo "No changes detected. Skipping build."
+            echo "SHOULD_BUILD=0" >> $GITHUB_OUTPUT
           fi
 
       - name: Clear older runs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh run list -L400 --json databaseId -q '.[].databaseId' | tail -n+10 | xargs -IID gh api "repos/$GITHUB_REPOSITORY/actions/runs/ID" -X DELETE || :
+          # Keep last 10 runs, delete older ones to save space
+          gh run list -L400 --json databaseId -q '.[].databaseId' | tail -n+11 | xargs -IID gh api "repos/$GITHUB_REPOSITORY/actions/runs/ID" -X DELETE || :
 
     outputs:
       SHOULD_BUILD: ${{ steps.should_build.outputs.SHOULD_BUILD }}
+      LATEST_PATCHES_TAG: ${{ steps.check_patches.outputs.LATEST_PATCHES_TAG }}
+      LATEST_PATCHES_PRERELEASE: ${{ steps.check_patches.outputs.LATEST_PATCHES_PRERELEASE }}
 
   build:
     permissions: write-all
     needs: check
     uses: ./.github/workflows/build.yml
-    if: ${{ needs.check.outputs.SHOULD_BUILD == 1 }}
+    if: ${{ needs.check.outputs.SHOULD_BUILD == '1' }}
     secrets: inherit
+    with:
+      from_ci: true
