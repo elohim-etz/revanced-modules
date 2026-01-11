@@ -113,40 +113,166 @@ jobs:
         if: env.TG_TOKEN != null
         run: |
           cd build || { echo "build folder not found"; exit 1; }
-
+          
           TG_CHAT="@RM6785_Chat"
-          NL=$'\n'
-          APKS=""
-          MODULES=""
+          BUILD_NUM="${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}"
+          RELEASE_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$BUILD_NUM"
+          
+          cd ..
+          YOUTUBE_VER=$(grep -oP 'YouTube: \K[0-9.]+' build.md || echo "N/A")
+          MUSIC_VER=$(grep -oP 'Music: \K[0-9.]+' build.md || echo "N/A")
+          CLI_VER=$(grep -oP 'morphe-cli-\K[0-9.]+' build.md || echo "N/A")
+          PATCHES_VER=$(grep -oP 'patches-\K[0-9.]+-dev\.[0-9]+' build.md || grep -oP 'patches-\K[0-9.]+' build.md || echo "N/A")
+          
+          MSG="🚀 *New Morphe Build Available!*
+
+          *YouTube:* \`${YOUTUBE_VER}\`
+          *Music:* \`${MUSIC_VER}\`
+
+          *Build Info:*
+          • CLI: \`v${CLI_VER}\`
+          • Patches: \`v${PATCHES_VER}\`
+          • Build: \`#${BUILD_NUM}\`
+
+          *What's Included:*
+          • Root modules (Magisk/KernelSU)
+          • Non-root APKs (requires MicroG)
+
+          *Installation:*
+          • Root: Flash module via Magisk/KernelSU
+          • Non-root: Install APK + [MicroG-RE](https://github.com/MorpheApp/MicroG-RE/releases)
+
+          *Links:*
+          • [Full Changelog](${RELEASE_URL})
+          • [Star Repository](https://github.com/${GITHUB_REPOSITORY})
+          • [Builder Source](https://github.com/elohim-etz/morphe-builder)
+
+          _Built with ❤️ by_ [𝙴𝙻𝙾𝙷𝙸𝙼](https://t.me/elohim152)"
+          
+          cd build
+          declare -A YT_MODULES YT_APKS MUSIC_MODULES MUSIC_APKS
+          
           for OUTPUT in *; do
-            DL_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}/${OUTPUT}"
-            if [[ $OUTPUT = *.apk ]]; then
-              APKS+="${NL}📦[${OUTPUT}](${DL_URL})"
-            elif [[ $OUTPUT = *.zip ]]; then
-              MODULES+="${NL}📦[${OUTPUT}](${DL_URL})"
+            DL_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$BUILD_NUM/${OUTPUT}"
+            
+            if [[ $OUTPUT == *"youtube"* ]] && [[ $OUTPUT == *"module"* ]]; then
+              if [[ $OUTPUT == *"arm64"* ]]; then
+                YT_MODULES[arm64]="$DL_URL"
+              elif [[ $OUTPUT == *"arm"* ]]; then
+                YT_MODULES[arm]="$DL_URL"
+              else
+                YT_MODULES[all]="$DL_URL"
+              fi
+            elif [[ $OUTPUT == *"youtube"* ]] && [[ $OUTPUT == *.apk ]]; then
+              if [[ $OUTPUT == *"arm64"* ]]; then
+                YT_APKS[arm64]="$DL_URL"
+              elif [[ $OUTPUT == *"arm"* ]]; then
+                YT_APKS[arm]="$DL_URL"
+              else
+                YT_APKS[all]="$DL_URL"
+              fi
+            elif [[ $OUTPUT == *"music"* ]] && [[ $OUTPUT == *"module"* ]]; then
+              if [[ $OUTPUT == *"arm64"* ]]; then
+                MUSIC_MODULES[arm64]="$DL_URL"
+              elif [[ $OUTPUT == *"arm"* ]]; then
+                MUSIC_MODULES[arm]="$DL_URL"
+              else
+                MUSIC_MODULES[all]="$DL_URL"
+              fi
+            elif [[ $OUTPUT == *"music"* ]] && [[ $OUTPUT == *.apk ]]; then
+              if [[ $OUTPUT == *"arm64"* ]]; then
+                MUSIC_APKS[arm64]="$DL_URL"
+              elif [[ $OUTPUT == *"arm"* ]]; then
+                MUSIC_APKS[arm]="$DL_URL"
+              else
+                MUSIC_APKS[all]="$DL_URL"
+              fi
             fi
           done
-          MODULES=${MODULES#"$NL"}
-          APKS=${APKS#"$NL"}
-
-          BODY="$(sed 's/^\* \*\*/↪ \*\*/g; s/^\* `/↪ \*\*/g; s/`/\*/g; s/^\* /\↪/g; s/\*\*/\*/g; s/###//g; s/^- /↪ /g; /^==/d;' ../build.md)"
-          MSG="*New Morphe build! 🎉*
-
-          ${BODY}
-
-          *▼ Download Links:*
-          Modules:
-          ${MODULES}
-
-          APKs:
-          ${APKS}
-
-          *By* [𝙴𝙻𝙾𝙷𝙸𝙼](https://t.me/elohim152)
-
-          *🌟 Check out builder source:*
-          https://github.com/elohim-etz/morphe-builder
-          "
-          echo "'$MSG'"
-          MSG=${MSG:0:9450}
-          POST="https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
-          curl -X POST --data-urlencode "parse_mode=Markdown" --data-urlencode "disable_web_page_preview=true" --data-urlencode "text=${MSG}" --data-urlencode "chat_id=${TG_CHAT}" "$POST"
+          
+          BUTTONS='['
+          
+          if [ -n "${YT_APKS[arm64]}" ] || [ -n "${YT_APKS[all]}" ] || [ -n "${MUSIC_APKS[arm64]}" ] || [ -n "${MUSIC_APKS[all]}" ]; then
+            BUTTONS+='['
+            
+            if [ -n "${YT_APKS[arm64]}" ]; then
+              BUTTONS+="{\"text\":\"YouTube (APK)\",\"url\":\"${YT_APKS[arm64]}\"}"
+            elif [ -n "${YT_APKS[all]}" ]; then
+              BUTTONS+="{\"text\":\"YouTube (APK)\",\"url\":\"${YT_APKS[all]}\"}"
+            fi
+            
+            if [ -n "${MUSIC_APKS[arm64]}" ]; then
+              [ "${BUTTONS: -1}" = "}" ] && BUTTONS+=","
+              BUTTONS+="{\"text\":\"Music (APK)\",\"url\":\"${MUSIC_APKS[arm64]}\"}"
+            elif [ -n "${MUSIC_APKS[all]}" ]; then
+              [ "${BUTTONS: -1}" = "}" ] && BUTTONS+=","
+              BUTTONS+="{\"text\":\"Music (APK)\",\"url\":\"${MUSIC_APKS[all]}\"}"
+            fi
+            
+            BUTTONS+=']'
+          fi
+          
+          if [ -n "${YT_MODULES[arm64]}" ] || [ -n "${YT_MODULES[all]}" ] || [ -n "${MUSIC_MODULES[arm64]}" ] || [ -n "${MUSIC_MODULES[all]}" ]; then
+            [ "${BUTTONS: -1}" = "]" ] && BUTTONS+=","
+            BUTTONS+='['
+            
+            if [ -n "${YT_MODULES[arm64]}" ]; then
+              BUTTONS+="{\"text\":\"YouTube (Module)\",\"url\":\"${YT_MODULES[arm64]}\"}"
+            elif [ -n "${YT_MODULES[all]}" ]; then
+              BUTTONS+="{\"text\":\"YouTube (Module)\",\"url\":\"${YT_MODULES[all]}\"}"
+            fi
+            
+            if [ -n "${MUSIC_MODULES[arm64]}" ]; then
+              [ "${BUTTONS: -1}" = "}" ] && BUTTONS+=","
+              BUTTONS+="{\"text\":\"Music (Module)\",\"url\":\"${MUSIC_MODULES[arm64]}\"}"
+            elif [ -n "${MUSIC_MODULES[all]}" ]; then
+              [ "${BUTTONS: -1}" = "}" ] && BUTTONS+=","
+              BUTTONS+="{\"text\":\"Music (Module)\",\"url\":\"${MUSIC_MODULES[all]}\"}"
+            fi
+            
+            BUTTONS+=']'
+          fi
+          
+          if [ -n "${YT_APKS[arm]}" ]; then
+            [ "${BUTTONS: -1}" = "]" ] && BUTTONS+=","
+            BUTTONS+="[{\"text\":\"YouTube (APK ARM)\",\"url\":\"${YT_APKS[arm]}\"}]"
+          fi
+          
+          if [ -n "${YT_MODULES[arm]}" ]; then
+            [ "${BUTTONS: -1}" = "]" ] && BUTTONS+=","
+            BUTTONS+="[{\"text\":\"YouTube (Module ARM)\",\"url\":\"${YT_MODULES[arm]}\"}]"
+          fi
+          
+          if [ -n "${MUSIC_APKS[arm]}" ]; then
+            [ "${BUTTONS: -1}" = "]" ] && BUTTONS+=","
+            BUTTONS+="[{\"text\":\"Music (APK ARM)\",\"url\":\"${MUSIC_APKS[arm]}\"}]"
+          fi
+          
+          if [ -n "${MUSIC_MODULES[arm]}" ]; then
+            [ "${BUTTONS: -1}" = "]" ] && BUTTONS+=","
+            BUTTONS+="[{\"text\":\"Music (Module ARM)\",\"url\":\"${MUSIC_MODULES[arm]}\"}]"
+          fi
+          
+          BUTTONS+=']'
+          
+          POST_URL="https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
+          
+          RESPONSE=$(curl -s -X POST "$POST_URL" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"$TG_CHAT\",
+              \"text\": \"$MSG\",
+              \"parse_mode\": \"Markdown\",
+              \"disable_web_page_preview\": true,
+              \"reply_markup\": {
+                \"inline_keyboard\": $BUTTONS
+              }
+            }")
+          
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
+            echo "✅ Telegram notification sent successfully!"
+          else
+            echo "❌ Failed to send Telegram notification"
+            echo "$RESPONSE"
+            exit 1
+          fi
