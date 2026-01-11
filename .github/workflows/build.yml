@@ -114,7 +114,7 @@ jobs:
         run: |
           cd build || { echo "build folder not found"; exit 1; }
           
-          TG_CHAT="@RM6785_Chat"
+          TG_CHAT="rm6785dumppAss"
           BUILD_NUM="${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}"
           RELEASE_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$BUILD_NUM"
           
