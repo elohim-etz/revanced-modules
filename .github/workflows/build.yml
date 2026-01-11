@@ -1,4 +1,4 @@
-name: Build Modules
+name: Build Morphe
 on:
   workflow_call:
     inputs:
@@ -66,12 +66,12 @@ jobs:
           body: ${{ steps.get_output.outputs.BUILD_LOG }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./build/*
-          release_name: ReVanced
+          release_name: Morphe
           tag: ${{ steps.next_ver_code.outputs.NEXT_VER_CODE }}
           file_glob: true
           overwrite: true
 
-      - name: Update changelog and Magisk update json
+      - name: Update changelog and Module update json
         id: update_config
         run: |
           git checkout -f update || git switch --discard-changes --orphan update
@@ -86,8 +86,8 @@ jobs:
           }
 
           cd build || { echo "build folder not found"; exit 1; }
-          for OUTPUT in *magisk*.zip; do
-            [ "$OUTPUT" = "*magisk*.zip" ] && continue
+          for OUTPUT in *module*.zip; do
+            [ "$OUTPUT" = "*module*.zip" ] && continue
             ZIP_S=$(unzip -p "$OUTPUT" module.prop)
             if ! UPDATE_JSON=$(echo "$ZIP_S" | grep updateJson); then continue; fi
             UPDATE_JSON="${UPDATE_JSON##*/}"
@@ -114,7 +114,7 @@ jobs:
         run: |
           cd build || { echo "build folder not found"; exit 1; }
 
-          TG_CHAT="@rvc_magisk"
+          TG_CHAT="@RM6785_Chat"
           NL=$'\n'
           APKS=""
           MODULES=""
