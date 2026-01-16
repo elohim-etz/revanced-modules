@@ -1,6 +1,6 @@
 {
-  "version": "v8.37.56 (patches dev.1.mpp)",
-  "versionCode": 61,
-  "zipUrl": "https://github.com/elohim-etz/morphe-builder/releases/download/61/music-morphe-module-v8.37.56-arm64-v8a.zip",
+  "version": "v8.37.56 (patches dev.2.mpp)",
+  "versionCode": 62,
+  "zipUrl": "https://github.com/elohim-etz/morphe-builder/releases/download/62/music-morphe-module-v8.37.56-arm64-v8a.zip",
   "changelog": "https://raw.githubusercontent.com/elohim-etz/morphe-builder/update/build.md"
 }
