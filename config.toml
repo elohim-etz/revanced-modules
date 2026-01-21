@@ -1,6 +1,6 @@
 enable-module-update = true
 parallel-jobs = 1
-patches-version = "dev"
+patches-version = "latest"
 cli-version = "latest"
 
 # add 'enabled = false' for not patching a specific app or remove it from the config

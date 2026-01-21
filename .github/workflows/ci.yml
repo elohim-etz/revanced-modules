@@ -20,9 +20,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get latest release including pre-releases
-          LATEST=$(gh api repos/MorpheApp/morphe-patches/releases --jq 'sort_by(.created_at) | reverse | .[0].tag_name')
-          echo "Latest patches: $LATEST"
+          # Get latest stable release (excluding pre-releases)
+          LATEST=$(gh api repos/MorpheApp/morphe-patches/releases --jq '[.[] | select(.prerelease == false)] | sort_by(.created_at) | reverse | .[0].tag_name')
+          echo "Latest stable patches: $LATEST"
           
           # Get last built version
           LAST=""
